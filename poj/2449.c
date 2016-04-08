@@ -1,11 +1,11 @@
-#include <stdlib.h>
+//#include <stdlib.h>
 #include <stdio.h>
 
-#define N (1000)
+#define N (1100)
 #define M (N * N)
 #define L (10)
 #define PATH_MAX_NUM ((N)*(N))
-#define INF 100000000
+#define INF 99999999
 
 int graph[N][N];
 int v_graph[N][N];//反向图
@@ -13,6 +13,9 @@ int H[N][N];
 int m, n;
 int S, T, K;
 int kk[N];
+
+//路径跳数限制
+int PATH_LEN_LIMIT = INF;
 
 typedef struct path_s {
     struct path_s *prev;//子路径, prev = path - sink
@@ -70,8 +73,8 @@ void free_path(path_t *path)
 path_t* get_path()
 {
     if(unused_path == NULL) {
-        printf("get_path unused_path == NULL, pq->size=%d\n", pq->size);
-        exit(-1);
+        //printf("get_path unused_path == NULL, pq->size=%d\n", pq->size);
+        //exit(-1);
     }
     path_t *path_tmp = unused_path;
     unused_path = unused_path->prev;
@@ -87,22 +90,23 @@ void init_pq()
 
 void push_pq(path_t *path)
 {
-     int t = pq->size;
-     path_t *path_tmp;
-     pq->path[pq->size] = path;
-     pq->size = pq->size + 1;
-     if(pq->size > PATH_MAX_NUM) {
-        printf("push_pq: pq->size = %d > PATH_MAX_NUM(%d)\n", pq->size, PATH_MAX_NUM);
-        exit(-1);
+    if(PATH_MAX_NUM < pq->size) {
+        printf("pq->size:%d\n", pq->size);
+        for(;;);
      }
-     while(t != 0) {
-         if(pq->path[t]->f >= pq->path[(t-1)/2]->f) return;
-         path_tmp = pq->path[t];
+     int t = pq->size;
+     
+     pq->path[t] = path;
+     pq->size = pq->size + 1;
+     
+     while(t > 0) {
+         if(path->f >= pq->path[(t-1)/2]->f) break;
+         
          pq->path[t] = pq->path[(t-1)/2];
-         pq->path[(t-1)/2] = path_tmp;
+         
          t = (t-1)/2;
      }
-
+     pq->path[t] = path;
 }
 
 path_t* pop_pq()
@@ -110,8 +114,8 @@ path_t* pop_pq()
     path_t *path_tmp;
     int t = 0;
     if(pq->size == 0) {
-        printf("pop_pq: pq->size == 0\n");
-        exit(-1);
+        //printf("pop_pq: pq->size == 0\n");
+        //exit(-1);
     }
     pq->size = pq->size - 1;
     path_tmp = pq->path[0];
@@ -128,11 +132,12 @@ path_t* pop_pq()
     return pq->path[pq->size];
 }
 
+
 path_t* top_pq()
 {
     if(pq->size == 0) {
-        printf("top_pq: pq->size == 0\n");
-        exit(-1);
+        //printf("top_pq: pq->size == 0\n");
+        //exit(-1);
     }
     return pq->path[0];
 }
@@ -196,11 +201,13 @@ void init_kk()
 
 void print_path(path_t *path)
 {
+    int f = path->f;
     while(path) {
-        printf("%d<-", path->sink);
+        printf("%d", path->sink);
+        if(path->prev) printf("<-");
+        else printf("::%d\n", f);
         path = path->prev;
     }
-    printf("\n");
 }
 
 int ksp_by_A_star(int s, int t, int k)
@@ -208,12 +215,15 @@ int ksp_by_A_star(int s, int t, int k)
      //printf("s=%d, t=%d, k=%d\n", s, t, k);
      path_t *path, *pt;
      edge_t *edge;
-     calculate_H();
      init_kk();
      init_path_pool();
      path = get_path();
      init_pq();
-     if(H[t][s] >= INF) return -1;
+     if(H[t][s] >= INF) {
+         //printf("-1 H[t][s] >= INF\n");
+         printf("s=%d, t=%d, k=%d, rtt=%d\n", s, t, kk[path->sink], -1);
+         return -1;
+     }
      path->sink = s;
      path->prev = NULL;
      path->len = 1;
@@ -225,12 +235,15 @@ int ksp_by_A_star(int s, int t, int k)
          path = pop_pq();
          //printf("path->sink=%d, path->len=%d, path->f=%d, path->g=%d\n", path->sink,  path->len, path->f, path->g);
          kk[path->sink]++;
-         if(kk[path->sink] > k) continue;
+         //if(kk[path->sink] > k) continue;
+         if(path->sink == t) {
+             print_path(path);
+             //printf("s=%d, t=%d, k=%d, rtt=%d\n", s, t, kk[path->sink], path->f);
+         }
          if(path->sink == t && kk[path->sink] == k) {
-             //print_path(path);
              return path->f;
          }
-         if(path->len > 4) continue;
+         if(path->len >= PATH_LEN_LIMIT) continue;
          edge = edges[path->sink];
          while(edge) {
              if(H[t][edge->v] >= INF) {
@@ -251,15 +264,33 @@ int ksp_by_A_star(int s, int t, int k)
          //exit(0);
          //free_path(path);
      }
+     //printf("-1\n");
+     printf("s=%d, t=%d, k=%d, rtt=%d\n", s, t, kk[path->sink], -1);
      return -1;
 }
 int main() {
     read_input();
-    int i, j;
-    for(i = 1; i < n; i++) {
-        //int res = ksp_by_A_star(S, T, K + (S==T));
-        int res = ksp_by_A_star(0, i, K + (0==i));
-        printf("%d\n", res);
+    calculate_H();
+    int i, j, k;
+
+    K = 40;
+    for(i = 0; i < n; i++) {
+        int res = ksp_by_A_star(114, i, K + (114==i));
+        //printf("%d\n", res);
     }
+    return 0;
+
+    for(i = 0; i < n; i++) {
+        for(j = 0; j < n; j++) {
+           K = 10;
+           //int res = ksp_by_A_star(S, T, K + (S==T));
+           int res = ksp_by_A_star(j, i, K + (j==i));
+           //printf("%d\n", res);
+        }
+    }
+    return 0;
+
+    int res = ksp_by_A_star(S, T, K + (S==T));
+    printf("%d\n", res);
     return 0;
 }
