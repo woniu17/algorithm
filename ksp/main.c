@@ -202,6 +202,8 @@ void init_kk()
 void print_path(path_t *path)
 {
     int f = path->f;
+    printf("%d\n", f);
+    return;
     while(path) {
         printf("%d", path->sink);
         if(path->prev) printf("<-");
@@ -289,7 +291,7 @@ int main() {
     calculate_H();
     int i, j, k;
 
-    K = 40;
+    K = 5;
     for(i = 0; i < n; i++) {
         int res = ksp_by_A_star(114, i, K + (114==i));
         //printf("%d\n", res);
