@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include<string.h>
 
 #define N (1100)
 #define M (N * N)
@@ -59,9 +60,11 @@ inline void save_path(path_t *path)
         if(kspath[u][v][i].dist > max) max = kspath[u][v][i].dist, j = i;
     if(max <= path->dist) return;
     if(path->step > 3) return;
-    kspath[u][v][j].dist = path->dist;
-    kspath[u][v][j].step = path->step;
-    for(i = 0; i < path->step; i++) kspath[u][v][j].nodes[i] = path->nodes[i];
+
+    memcpy(kspath[u][v]+j, path, sizeof(int)*(2+path->step));
+    //kspath[u][v][j].dist = path->dist;
+    //kspath[u][v][j].step = path->step;
+    //for(i = 0; i < path->step; i++) kspath[u][v][j].nodes[i] = path->nodes[i];
 
 }
 
